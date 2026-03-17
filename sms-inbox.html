@@ -755,6 +755,11 @@
       <input type="tel" id="cfg-bossphone" placeholder="+16479876543" />
       <div class="hint">Both of you will be notified on new incoming messages.</div>
     </div>
+    <div class="field" id="notif-field">
+      <label>Push Notifications</label>
+      <button class="btn-save" style="width:100%;margin-top:4px" onclick="requestNotifPermission()">🔔 Enable Notifications on This Device</button>
+      <div class="hint" id="notif-status-hint">Tap to allow push notifications when leads text you.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn-cancel" onclick="closeSettings()">Cancel</button>
       <button class="btn-save" onclick="saveSettings()">Save & Connect</button>
@@ -1160,6 +1165,19 @@ function openSettings() {
   document.getElementById('cfg-url').value = cfg.backendUrl || '';
   document.getElementById('cfg-myphone').value = cfg.myPhone || '';
   document.getElementById('cfg-bossphone').value = cfg.bossPhone || '';
+  // Show current notification status
+  const hint = document.getElementById('notif-status-hint');
+  if (hint) {
+    if (Notification.permission === 'granted') {
+      hint.textContent = '✅ Notifications are enabled on this device.';
+    } else if (Notification.permission === 'denied') {
+      hint.textContent = '❌ Blocked — go to iPhone Settings → Studio SMS → Notifications to enable.';
+    } else {
+      hint.textContent = 'Tap to allow push notifications when leads text you.';
+    }
+  }
+  // Clear dismissed flag so banner shows again
+  localStorage.removeItem('notif_dismissed');
   document.getElementById('settings-modal').classList.add('open');
 }
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
