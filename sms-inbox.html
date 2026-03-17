@@ -715,14 +715,9 @@
       <div class="hint">Your Render project URL — no trailing slash</div>
     </div>
     <div class="field">
-      <label>Your Phone Number (for notifications)</label>
+      <label>Your Phone Number <span style="color:var(--text-muted);font-weight:400;text-transform:none">(optional)</span></label>
       <input type="tel" id="cfg-myphone" placeholder="+16471234567" />
-      <div class="hint">Include country code. You'll get a text when a lead replies.</div>
-    </div>
-    <div class="field">
-      <label>Boss's Phone Number (for notifications)</label>
-      <input type="tel" id="cfg-bossphone" placeholder="+16479876543" />
-      <div class="hint">Both of you will be notified on new incoming messages.</div>
+      <div class="hint">Only needed as a backup SMS fallback. Push notifications work without this.</div>
     </div>
     <div class="field" id="notif-field">
       <label>Push Notifications</label>
@@ -1189,7 +1184,6 @@ function startNewConvo() {
 function openSettings() {
   document.getElementById('cfg-url').value = cfg.backendUrl || '';
   document.getElementById('cfg-myphone').value = cfg.myPhone || '';
-  document.getElementById('cfg-bossphone').value = cfg.bossPhone || '';
   // Show current notification status
   const hint = document.getElementById('notif-status-hint');
   if (hint) {
@@ -1210,7 +1204,6 @@ function closeSettings() { document.getElementById('settings-modal').classList.r
 async function saveSettings() {
   cfg.backendUrl = document.getElementById('cfg-url').value.replace(/\/$/, '');
   cfg.myPhone = document.getElementById('cfg-myphone').value.trim();
-  cfg.bossPhone = document.getElementById('cfg-bossphone').value.trim();
   localStorage.setItem('studio_sms_cfg', JSON.stringify(cfg));
   closeSettings();
   showToast('Connecting…', 'success');
