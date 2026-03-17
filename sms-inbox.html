@@ -865,10 +865,23 @@ function dismissNotifBanner() {
 
 async function subscribeToPush(reg) {
   try {
+    if (!cfg.backendUrl) {
+      showToast('Set backend URL in settings first', 'error');
+      return;
+    }
+
     // Get VAPID public key from backend
-    const keyRes = await fetch(`${cfg.backendUrl}/vapid-public-key`, { signal: AbortSignal.timeout(5000) });
-    if (!keyRes.ok) return;
+    showToast('Connecting to push service…');
+    const keyRes = await fetch(`${cfg.backendUrl}/vapid-public-key`, { signal: AbortSignal.timeout(8000) });
+    if (!keyRes.ok) {
+      showToast('Could not reach backend for VAPID key', 'error');
+      return;
+    }
     const { key } = await keyRes.json();
+    if (!key) {
+      showToast('VAPID key missing — check Render env vars', 'error');
+      return;
+    }
 
     // Check if already subscribed
     let sub = await reg.pushManager.getSubscription();
@@ -880,13 +893,19 @@ async function subscribeToPush(reg) {
     }
 
     // Send subscription to backend
-    await fetch(`${cfg.backendUrl}/subscribe`, {
+    const saveRes = await fetch(`${cfg.backendUrl}/subscribe`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subscription: sub })
     });
+    if (!saveRes.ok) {
+      showToast('Failed to save subscription to backend', 'error');
+      return;
+    }
+    showToast('🔔 Notifications active on this device!', 'success');
   } catch(e) {
-    console.warn('Push subscription failed:', e);
+    showToast('Push setup error: ' + e.message, 'error');
+    console.error('Push subscription failed:', e);
   }
 }
 
