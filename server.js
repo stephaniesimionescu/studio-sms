@@ -14,12 +14,14 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 const FROM_NUMBER = process.env.TWILIO_PHONE_NUMBER;
 
-// Set up VAPID for push notifications
-webpush.setVapidDetails(
-  'mailto:' + (process.env.VAPID_EMAIL || 'hello@example.com'),
-  process.env.VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+// Set up VAPID for push notifications (only if keys are set)
+if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    'mailto:' + (process.env.VAPID_EMAIL || 'hello@example.com'),
+    process.env.VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+}
 
 // ── One-time VAPID key generator (hit this URL once to get your keys) ──
 // Once you've saved the keys to Render env vars, this endpoint does nothing harmful
