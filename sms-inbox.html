@@ -302,6 +302,16 @@
     font-weight: 500;
     font-size: 15px;
     color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .thread-name::after {
+    content: '✎';
+    font-size: 11px;
+    color: var(--text-muted);
+    opacity: 0.6;
   }
   .thread-number {
     font-size: 12px;
@@ -674,7 +684,7 @@
       <button class="back-btn" onclick="goBack()">‹</button>
       <div class="thread-avatar" id="thread-av"></div>
       <div class="thread-info">
-        <div class="thread-name" id="thread-name"></div>
+        <div class="thread-name" id="thread-name" onclick="promptRename()" title="Tap to rename"></div>
         <div class="thread-number" id="thread-number"></div>
       </div>
     </div>
@@ -1097,15 +1107,58 @@ async function sendMessage() {
     if (!res.ok) throw new Error('Send failed');
     await loadMessages(activeContact, true);
 
-    // Update convo list
+    // Auto-extract name from "Hey [Name]..." pattern if contact has no name yet
     const convo = conversations.find(c => c.contact === activeContact);
-    if (convo) { convo.lastMessage = body; convo.lastTime = new Date().toISOString(); convo.lastDirection = 'outbound'; }
+    if (convo) {
+      convo.lastMessage = body;
+      convo.lastTime = new Date().toISOString();
+      convo.lastDirection = 'outbound';
+      // Only auto-name if still showing phone number as name
+      if (!convo.nameSetManually && convo.name === convo.contact) {
+        const detected = extractNameFromMessage(body);
+        if (detected) {
+          convo.name = detected;
+          document.getElementById('thread-name').textContent = detected;
+          document.getElementById('thread-av').textContent = getInitials(detected);
+          showToast(`Contact named "${detected}" ✓`, 'success');
+        }
+      }
+    }
     saveConvos();
     loadConvoList();
   } catch(e) {
     tempRow.querySelector('.bubble').style.opacity = '0.5';
     tempRow.querySelector('.msg-time').textContent = 'Failed ✕';
     showToast('Failed to send message', 'error');
+  }
+}
+
+// ── Name extraction ──
+function extractNameFromMessage(body) {
+  // Matches: "Hey Sarah", "Hi James!", "Hello Sarah,", "Hey Sarah &", "Hi Sarah and James"
+  const match = body.match(/^(?:hey|hi|hello|good morning|good afternoon|good evening)[,\s]+([A-Z][a-z]+(?:\s*[&+]\s*[A-Z][a-z]+)?(?:\s+and\s+[A-Z][a-z]+)?)/i);
+  if (match) {
+    // Clean up punctuation
+    return match[1].replace(/[,!.]+$/, '').trim();
+  }
+  return null;
+}
+
+function promptRename() {
+  if (!activeContact) return;
+  const convo = conversations.find(c => c.contact === activeContact);
+  const current = convo?.name === convo?.contact ? '' : (convo?.name || '');
+  const newName = prompt('Rename this contact:', current);
+  if (newName === null) return; // cancelled
+  const name = newName.trim() || activeContact;
+  if (convo) {
+    convo.name = name;
+    convo.nameSetManually = true;
+    saveConvos();
+    loadConvoList();
+    document.getElementById('thread-name').textContent = name;
+    document.getElementById('thread-av').textContent = getInitials(name);
+    showToast(`Renamed to "${name}" ✓`, 'success');
   }
 }
 
