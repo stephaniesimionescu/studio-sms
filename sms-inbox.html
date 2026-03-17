@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Inbox — Studio SMS</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Studio SMS">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -770,6 +774,51 @@ async function init() {
   });
 
   document.getElementById('search-input').addEventListener('input', filterConvos);
+
+  // Register service worker and subscribe to push
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      await navigator.serviceWorker.ready;
+      await subscribeToPush(reg);
+    } catch(e) {
+      console.warn('Service worker / push setup failed:', e);
+    }
+  }
+}
+
+async function subscribeToPush(reg) {
+  try {
+    // Get VAPID public key from backend
+    const keyRes = await fetch(`${cfg.backendUrl}/vapid-public-key`, { signal: AbortSignal.timeout(5000) });
+    if (!keyRes.ok) return;
+    const { key } = await keyRes.json();
+
+    // Check if already subscribed
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(key)
+      });
+    }
+
+    // Send subscription to backend
+    await fetch(`${cfg.backendUrl}/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subscription: sub })
+    });
+  } catch(e) {
+    console.warn('Push subscription failed:', e);
+  }
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
 }
 
 // ── Backend connection ──
