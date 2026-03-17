@@ -578,6 +578,46 @@
   /* ── New convo modal ── */
   #new-modal .modal h2 { margin-bottom: 20px; }
 
+  /* ── Notification banner ── */
+  #notif-banner {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--gold-dim);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  #notif-banner p {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-mid);
+    line-height: 1.4;
+  }
+  #notif-banner strong { color: var(--gold); }
+  .btn-enable-notif {
+    background: var(--gold);
+    border: none;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--bg);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-dismiss-notif {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+  }
+
   /* ── Toast ── */
   #toast {
     position: fixed;
@@ -665,6 +705,12 @@
 
   <!-- Main -->
   <div id="main">
+  <!-- Notification permission banner -->
+  <div id="notif-banner" style="display:none">
+    <p><strong>🔔 Enable notifications</strong> to get buzzed when a lead texts you.</p>
+    <button class="btn-enable-notif" onclick="requestNotifPermission()">Enable</button>
+    <button class="btn-dismiss-notif" onclick="dismissNotifBanner()" title="Dismiss">✕</button>
+  </div>
     <div id="thread-header" style="display:none">
       <button class="back-btn" onclick="goBack()">‹</button>
       <div class="thread-avatar" id="thread-av"></div>
@@ -775,16 +821,41 @@ async function init() {
 
   document.getElementById('search-input').addEventListener('input', filterConvos);
 
-  // Register service worker and subscribe to push
+  // Register service worker silently — actual permission asked via banner tap
   if ('serviceWorker' in navigator && 'PushManager' in window) {
     try {
-      const reg = await navigator.serviceWorker.register('sw.js');
+      await navigator.serviceWorker.register('sw.js');
       await navigator.serviceWorker.ready;
-      await subscribeToPush(reg);
+      // Show banner if not already granted
+      const perm = Notification.permission;
+      if (perm === 'default' && !localStorage.getItem('notif_dismissed')) {
+        document.getElementById('notif-banner').style.display = 'flex';
+      } else if (perm === 'granted') {
+        // Already granted — subscribe silently
+        const reg = await navigator.serviceWorker.ready;
+        await subscribeToPush(reg);
+      }
     } catch(e) {
-      console.warn('Service worker / push setup failed:', e);
+      console.warn('Service worker setup failed:', e);
     }
   }
+}
+
+async function requestNotifPermission() {
+  document.getElementById('notif-banner').style.display = 'none';
+  const perm = await Notification.requestPermission();
+  if (perm === 'granted') {
+    showToast('Notifications enabled! ✓', 'success');
+    const reg = await navigator.serviceWorker.ready;
+    await subscribeToPush(reg);
+  } else {
+    showToast('Notifications blocked — check iPhone Settings', 'error');
+  }
+}
+
+function dismissNotifBanner() {
+  document.getElementById('notif-banner').style.display = 'none';
+  localStorage.setItem('notif_dismissed', '1');
 }
 
 async function subscribeToPush(reg) {
